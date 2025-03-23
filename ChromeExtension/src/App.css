@@ -1,0 +1,94 @@
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
+}
+
+html, body, #root {
+  width: 400px;
+  height: 600px;
+  overflow: hidden;
+}
+
+body {
+  background-color: #0a0a0e;
+  color: white;
+}
+
+/* App container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 400px;
+  min-width: 400px;
+  background-color: #0a0a0e;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+}
+
+/* Navigation */
+.navigation {
+  width: 100%;
+  background-color: #111116;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.nav-content {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 32px;
+}
+
+.nav-tab {
+  color: #9ca3af;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nav-tab.active {
+  color: #8a9af1;
+  border-bottom: 2px solid #8a9af1;
+  padding-bottom: 4px;
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: calc(600px - 56px); /* Subtract the nav height */
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .nav-tabs {
+    gap: 16px;
+  }
+}
+
+/* Development mode styles */
+@media (min-width: 641px) {
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .app-container {
+    width: 400px;
+    min-width: 400px;
+    height: 600px;
+    margin: 2rem auto;
+  }
+} 

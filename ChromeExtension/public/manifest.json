@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "TEE Shield",
+  "description": "TEE Shield",
+  "version": "1.0",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Open the popup"
+  },
+  "permissions": ["storage", "activeTab", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "icons": {
+    "16": "logo192.png",
+    "48": "logo192.png",
+    "128": "logo192.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
