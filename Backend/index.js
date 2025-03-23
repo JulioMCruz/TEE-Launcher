@@ -69,6 +69,34 @@ app.get("/getAttestation", async (req, res) => {
   }
 });
 
+app.post("/verify", async (req, res) => {
+  try {
+    const { host } = req.body;
+
+    if (!host) {
+      return res.status(400).json({ error: "Missing host in request body" });
+    }
+
+    const verifyRes = await fetch("http://F3E36WT7NF2KMSB4BLVINGNOAY6IXF6OSI5IK4YA5SNLKN67VYKQ.oyster.run", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ host }),
+    });
+
+    if (!verifyRes.ok) {
+      return res.json({ result: false });
+    }
+
+    const verifyData = await verifyRes.json();
+    res.json(verifyData);
+  } catch (err) {
+    console.error("Verification error:", err);
+    res.json({ result: false });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
