@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react"
 import { arbitrumSepolia } from "viem/chains"
 import { useAccount, useBalance, useWriteContract } from "wagmi"
 import { join } from "path"
+import { cwd } from "process"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -41,6 +42,8 @@ export default function TerminalPage() {
   const [showPrivateKey, setShowPrivateKey] = useState(false)
   const [durationMinutes, setDurationMinutes] = useState("15")
   const [isCopied, setIsCopied] = useState(false)
+  const [instanceType, setInstanceType] = useState("c6g.xlarge")
+  const [region, setRegion] = useState("")
   const outputRef = useRef<HTMLDivElement>(null)
   const [dockerComposeContent, setDockerComposeContent] = useState("")
   const [extractionError, setExtractionError] = useState<string | null>(null)
@@ -179,9 +182,10 @@ export default function TerminalPage() {
   useEffect(() => {
     if (deploymentCommand) {
       let i = 0
+      const fullCommand = `${deploymentCommand}${instanceType ? ` --instance-type "${instanceType}"` : ''}${region ? ` --region ${region}` : ''}`
       const typing = setInterval(() => {
-        if (i < deploymentCommand.length) {
-          setTerminalText(deploymentCommand.substring(0, i + 1))
+        if (i < fullCommand.length) {
+          setTerminalText(fullCommand.substring(0, i + 1))
           i++
         } else {
           clearInterval(typing)
@@ -190,7 +194,7 @@ export default function TerminalPage() {
 
       return () => clearInterval(typing)
     }
-  }, [deploymentCommand])
+  }, [deploymentCommand, instanceType, region])
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(deploymentCommand)
@@ -207,6 +211,14 @@ export default function TerminalPage() {
       setIsExecuting(true)
       setCommandResult("Starting deployment process...\n")
 
+      // Get the latest docker-compose path
+      const pathResponse = await fetch(`/api/get-docker-compose-path?type=${dockerComposeType}`)
+      const pathData = await pathResponse.json()
+      if (!pathResponse.ok) {
+        throw new Error("Failed to get docker-compose path")
+      }
+      const fullPath = pathData.path
+
       setCommandResult(
         (prev) => `${prev}Verifying docker-compose.yml exists...\n`
       )
@@ -219,19 +231,24 @@ export default function TerminalPage() {
 
       setCommandResult(
         (prev) =>
-          `${prev}docker-compose.yml found. Proceeding with deployment...\n\n`
+          `${prev}docker-compose.yml found at ${fullPath}\nProceeding with deployment...\n\n`
       )
 
       // Replace variables in the command and ensure it's a single line
       const finalCommand = deploymentCommand
         .replace('"$PRIV_KEY"', `"${privateKey}"`)
         .replace('"$DURATION_MINUTES"', `"${durationMinutes}"`)
-        .replace('"$DOCKER_COMPOSE_PATH"', `"${dockerComposePath}"`)
+        .replace('"$DOCKER_COMPOSE_PATH"', `"${fullPath}"`) // Add quotes back for the full path
+        .concat(instanceType ? ` --instance-type "${instanceType}"` : '')
+        .concat(region ? ` --region ${region}` : '')
         .replace(/\n/g, " ") // Remove any newlines
         .trim() // Remove any extra spaces
 
+      // Log the final command for debugging
+      console.log('Final command:', finalCommand)
+
       setCommandResult(
-        (prev) => `${prev}\nExecuting command: ${deploymentCommand}\n\n`
+        (prev) => `${prev}\nExecuting command: ${finalCommand}\n\n`
       )
 
       // Execute the command
@@ -298,11 +315,21 @@ export default function TerminalPage() {
 
   // Update docker compose path when type changes
   useEffect(() => {
-    const basePath = process.cwd()
-    const newPath = dockerComposeType === "wordpress" 
-      ? join(basePath, 'assets', 'docker', 'wordpress', 'docker-compose.yml')
-      : join(basePath, 'assets', 'docker', 'testsafeglobal', 'docker-compose.yml')
-    setDockerComposePath(newPath)
+    async function getDockerComposePath() {
+      try {
+        const response = await fetch(`/api/get-docker-compose-path?type=${dockerComposeType}`)
+        const data = await response.json()
+        if (response.ok) {
+          setDockerComposePath(data.path)
+          console.log('Docker compose path:', data.path)
+        } else {
+          console.error('Failed to get docker-compose path:', data.error)
+        }
+      } catch (error) {
+        console.error('Error getting docker-compose path:', error)
+      }
+    }
+    getDockerComposePath()
   }, [dockerComposeType])
 
   useEffect(() => {
@@ -492,6 +519,104 @@ export default function TerminalPage() {
                     ⚠️ Never share your private key. Keep it secure.
                   </p>
                 )}
+              </div>
+
+              {/* Region */}
+              <div className="mt-6 pt-4 border-t border-cyan-900/30">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-400">Region</span>
+                  <span className="text-xs text-cyan-400">Region</span>
+                </div>
+                <div className="relative">
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="w-full bg-gray-800 rounded-xl p-3 border border-gray-700 font-mono text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none"
+                  >
+                    <option value="">Select Region</option>
+                    <option value="us-east-1">US East (N. Virginia) - us-east-1</option>
+                    <option value="us-east-2">US East (Ohio) - us-east-2</option>
+                    <option value="us-west-1">US West (N. California) - us-west-1</option>
+                    <option value="us-west-2">US West (Oregon) - us-west-2</option>
+                    <option value="ca-central-1">Canada (Central) - ca-central-1</option>
+                    <option value="sa-east-1">South America (Sao Paulo) - sa-east-1</option>
+                    <option value="eu-north-1">Europe (Stockholm) - eu-north-1</option>
+                    <option value="eu-west-3">Europe (Paris) - eu-west-3</option>
+                    <option value="eu-west-2">Europe (London) - eu-west-2</option>
+                    <option value="eu-west-1">Europe (Ireland) - eu-west-1</option>
+                    <option value="eu-central-1">Europe (Frankfurt) - eu-central-1</option>
+                    <option value="eu-central-2">Europe (Zurich) - eu-central-2</option>
+                    <option value="eu-south-1">Europe (Milan) - eu-south-1</option>
+                    <option value="eu-south-2">Europe (Spain) - eu-south-2</option>
+                    <option value="me-south-1">Middle East (Bahrain) - me-south-1</option>
+                    <option value="me-central-1">Middle East (UAE) - me-central-1</option>
+                    <option value="af-south-1">Africa (Cape Town) - af-south-1</option>
+                    <option value="ap-south-1">Asia Pacific (Mumbai) - ap-south-1</option>
+                    <option value="ap-northeast-1">Asia Pacific (Tokyo) - ap-northeast-1</option>
+                    <option value="ap-northeast-2">Asia Pacific (Seoul) - ap-northeast-2</option>
+                    <option value="ap-northeast-3">Asia Pacific (Osaka) - ap-northeast-3</option>
+                    <option value="ap-southeast-1">Asia Pacific (Singapore) - ap-southeast-1</option>
+                    <option value="ap-southeast-2">Asia Pacific (Sydney) - ap-southeast-2</option>
+                    <option value="ap-southeast-3">Asia Pacific (Jakarta) - ap-southeast-3</option>
+                    <option value="ap-southeast-4">Asia Pacific (Melbourne) - ap-southeast-4</option>
+                    <option value="ap-east-1">Asia Pacific (Hong Kong) - ap-east-1</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Select the region for your deployment
+                </p>
+              </div>
+
+              {/* Instance Type */}
+              <div className="mt-6 pt-4 border-t border-cyan-900/30">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-400">Instance Type</span>
+                  <span className="text-xs text-cyan-400">Type</span>
+                </div>
+                <div className="relative">
+                  <select
+                    value={instanceType}
+                    onChange={(e) => setInstanceType(e.target.value)}
+                    className="w-full bg-gray-800 rounded-xl p-3 border border-gray-700 font-mono text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none"
+                  >
+                    <option value="">Default</option>
+                    <option value="c6g.xlarge">c6g.xlarge</option>
+                    <option value="c5.xlarge">c5.xlarge</option>
+                    <option value="c5.2xlarge">c5.2xlarge</option>
+                    <option value="c5.4xlarge">c5.4xlarge</option>
+                    <option value="c5.9xlarge">c5.9xlarge</option>
+                    <option value="c5.12xlarge">c5.12xlarge</option>
+                    <option value="c5.18xlarge">c5.18xlarge</option>
+                    <option value="c5.24xlarge">c5.24xlarge</option>
+                    <option value="c5a.xlarge">c5a.xlarge</option>
+                    <option value="c5a.2xlarge">c5a.2xlarge</option>
+                    <option value="c5a.4xlarge">c5a.4xlarge</option>
+                    <option value="c5a.8xlarge">c5a.8xlarge</option>
+                    <option value="c5a.12xlarge">c5a.12xlarge</option>
+                    <option value="c5a.16xlarge">c5a.16xlarge</option>
+                    <option value="c5a.24xlarge">c5a.24xlarge</option>
+                    <option value="m5.xlarge">m5.xlarge</option>
+                    <option value="m5.2xlarge">m5.2xlarge</option>
+                    <option value="m5.4xlarge">m5.4xlarge</option>
+                    <option value="m5.8xlarge">m5.8xlarge</option>
+                    <option value="m5.12xlarge">m5.12xlarge</option>
+                    <option value="m5.16xlarge">m5.16xlarge</option>
+                    <option value="m5.24xlarge">m5.24xlarge</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Select the instance type for your deployment
+                </p>
               </div>
 
               {/* Duration in minutes */}

@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server'
-import { join, resolve } from 'path'
+import { join } from 'path'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get the absolute path and normalize it
-    const filePath = resolve(process.cwd(), 'assets', 'docker', 'wordpress', 'docker-compose.yml')
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type') || 'wordpress'
     
-    // Ensure forward slashes for consistency
-    const normalizedPath = filePath.replace(/\\/g, '/')
+    // Get the absolute path from the workspace root
+    const fullPath = join(process.cwd(), 'assets', 'docker', type, 'docker-compose.yml')
     
-    return NextResponse.json({ path: normalizedPath })
+    return NextResponse.json({ path: fullPath })
   } catch (error) {
-    console.error('Error getting docker-compose.yml path:', error)
+    console.error('Error getting docker-compose path:', error)
     return NextResponse.json(
-      { error: 'Failed to get docker-compose.yml path' },
+      { error: 'Failed to get docker-compose path' },
       { status: 500 }
     )
   }
