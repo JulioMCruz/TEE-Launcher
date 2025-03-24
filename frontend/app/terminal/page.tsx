@@ -60,6 +60,7 @@ export default function TerminalPage() {
   const [totalCost, setTotalCost] = useState("")
   const [totalRate, setTotalRate] = useState("")
   const [jobId, setJobId] = useState("")
+  const [showAlert, setShowAlert] = useState(true)
 
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
@@ -361,8 +362,8 @@ export default function TerminalPage() {
     <div className="bg-black text-cyan-400 min-h-screen p-6 font-mono relative">
       {/* Main Content */}
       <div className="relative max-w-5xl mx-auto">
-        {transactionHash && (
-          <Alert className="mb-6 bg-green-900/20 border-green-900/50 text-green-400">
+        {transactionHash && showAlert && (
+          <Alert className="mb-6 bg-green-900/20 border-green-900/50 text-green-400 relative">
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Success!</AlertTitle>
             <AlertDescription className="flex flex-col space-y-2">
@@ -390,6 +391,24 @@ export default function TerminalPage() {
                 </svg>
               </a>
             </AlertDescription>
+            <button
+              onClick={() => setShowAlert(false)}
+              className="absolute top-2 right-2 p-1 text-green-400 hover:text-green-300 transition-colors rounded-lg hover:bg-green-900/20"
+              aria-label="Close alert"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
           </Alert>
         )}
         <div className="flex items-center justify-between mb-8">
