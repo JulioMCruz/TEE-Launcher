@@ -3,9 +3,12 @@ import { access } from 'fs/promises'
 import { constants } from 'fs'
 import { join } from 'path'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const filePath = join(process.cwd(), 'assets', 'docker', 'wordpress', 'docker-compose.yml')
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type') || 'wordpress'
+    
+    const filePath = join(process.cwd(), 'assets', 'docker', type, 'docker-compose.yml')
     
     // Check if file exists and is readable
     await access(filePath, constants.R_OK)

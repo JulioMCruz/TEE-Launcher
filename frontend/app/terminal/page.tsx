@@ -5,6 +5,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit"
 import { CheckCircle2 } from "lucide-react"
 import { arbitrumSepolia } from "viem/chains"
 import { useAccount, useBalance, useWriteContract } from "wagmi"
+import { join } from "path"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -24,9 +25,10 @@ export default function TerminalPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [digestId, setDigestId] = useState("")
   const [ipAddress, setIpAddress] = useState("")
+  const [dockerComposeType, setDockerComposeType] = useState<"wordpress" | "testSafeGlobal">("testSafeGlobal")
   const [dockerComposePath, setDockerComposePath] = useState("")
   const [deploymentCommand, setDeploymentCommand] = useState(
-    'oyster-cvm deploy --bandwidth 50 --wallet-private-key "$PRIV_KEY" --duration-in-minutes "$DURATION_MINUTES" --docker-compose "$DOCKER_COMPOSE_PATH" --instance-type "c6g.xlarge"'
+    'oyster-cvm deploy --bandwidth 50 --wallet-private-key "$PRIV_KEY" --duration-in-minutes "$DURATION_MINUTES" --docker-compose "$DOCKER_COMPOSE_PATH"'
   )
   const [isDeployHovered, setIsDeployHovered] = useState(false)
   const [commandResult, setCommandResult] = useState("")
@@ -51,6 +53,7 @@ export default function TerminalPage() {
     null
   )
   const [transactionHash, setTransactionHash] = useState<string | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
@@ -156,7 +159,7 @@ export default function TerminalPage() {
             },
           ],
           functionName: "set",
-          args: [ipAddress, digestId],
+          args: [ipAddress, pcr2],
         })
       } catch (error) {
         console.error("Error submitting transaction:", error)
@@ -209,7 +212,7 @@ export default function TerminalPage() {
       )
 
       // Verify the docker-compose file exists
-      const fileCheckResponse = await fetch("/api/check-docker-compose")
+      const fileCheckResponse = await fetch(`/api/check-docker-compose?type=${dockerComposeType}`)
       if (!fileCheckResponse.ok) {
         throw new Error("docker-compose.yml file not found in assets directory")
       }
@@ -279,7 +282,7 @@ export default function TerminalPage() {
   useEffect(() => {
     async function loadDockerCompose() {
       try {
-        const response = await fetch("/api/get-docker-compose")
+        const response = await fetch(`/api/get-docker-compose?type=${dockerComposeType}`)
         const data = await response.json()
         if (response.ok) {
           setDockerComposeContent(data.content)
@@ -291,32 +294,28 @@ export default function TerminalPage() {
       }
     }
     loadDockerCompose()
-  }, [])
+  }, [dockerComposeType])
 
-  // Get the absolute path of docker-compose.yml
+  // Update docker compose path when type changes
   useEffect(() => {
-    async function getDockerComposePath() {
-      try {
-        const response = await fetch("/api/get-docker-compose-path")
-        const data = await response.json()
-        if (response.ok) {
-          setDockerComposePath(data.path)
-          console.log("Docker compose path:", data.path)
-        } else {
-          console.error("Failed to get docker-compose path:", data.error)
-        }
-      } catch (error) {
-        console.error("Error getting docker-compose path:", error)
-      }
-    }
-    getDockerComposePath()
-  }, [])
+    const basePath = process.cwd()
+    const newPath = dockerComposeType === "wordpress" 
+      ? join(basePath, 'assets', 'docker', 'wordpress', 'docker-compose.yml')
+      : join(basePath, 'assets', 'docker', 'testsafeglobal', 'docker-compose.yml')
+    setDockerComposePath(newPath)
+  }, [dockerComposeType])
 
   useEffect(() => {
     if (isError && error) {
       console.error("Contract write error:", error)
     }
   }, [isError, error])
+
+  const handleCopy = (value: string, field: string) => {
+    navigator.clipboard.writeText(value)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
 
   return (
     <div className="bg-black text-cyan-400 min-h-screen p-6 font-mono relative">
@@ -571,16 +570,24 @@ export default function TerminalPage() {
 
               {/* docker-compose.yml */}
               <div className="mt-6 pt-4 border-t border-cyan-900/30">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-gray-400">docker-compose.yml</span>
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col space-y-3">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-gray-400">docker-compose.yml</span>
+                    <select
+                      value={dockerComposeType}
+                      onChange={(e) => setDockerComposeType(e.target.value as "testSafeGlobal" | "wordpress" )}
+                      className="bg-gray-800 text-cyan-400 border border-cyan-900/50 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      <option value="testSafeGlobal">TestSafeGlobal</option>
+                      <option value="wordpress">WordPress</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">
-                      /assets/docker/wordpress/docker-compose.yml
+                      /assets/docker/{dockerComposeType}/docker-compose.yml
                     </span>
                     <button
-                      onClick={() =>
-                        navigator.clipboard.writeText(dockerComposeContent)
-                      }
+                      onClick={() => navigator.clipboard.writeText(dockerComposeContent)}
                       className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
                       Copy
@@ -591,13 +598,16 @@ export default function TerminalPage() {
                   <textarea
                     readOnly
                     value={dockerComposeContent}
-                    className="w-full h-48 bg-gray-800 rounded-xl p-3 border border-gray-700 font-mono text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                    className="my-4 w-full h-60 bg-gray-800 rounded-xl p-3 border border-gray-700 font-mono text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none overflow-auto whitespace-pre scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-600"
+                    style={{ overflowX: 'auto', overflowY: 'auto' }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  This configuration will be used for deploying your WordPress
-                  instance
-                </p>
+                {dockerComposeType === "wordpress" && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    This configuration will be used for deploying your WordPress
+                    instance
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -883,27 +893,104 @@ export default function TerminalPage() {
                 )}
 
                 <div className="mt-4 space-y-4">
-                  <div>
+                  <div className="relative">
                     <label className="block text-cyan-300 mb-2 text-sm font-medium">
                       Extracted IP Address
                     </label>
-                    <input
-                      type="text"
-                      value={ipAddress}
-                      readOnly
-                      className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={ipAddress}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(ipAddress, 'ip')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy IP address"
+                      >
+                        {copiedField === 'ip' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="block text-cyan-300 mb-2 text-sm font-medium">
                       Extracted Digest ID
                     </label>
-                    <input
-                      type="text"
-                      value={digestId}
-                      readOnly
-                      className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={digestId}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm"
+                        autoComplete="off"
+                      />
+                      <button
+                        onClick={() => handleCopy(digestId, 'digest')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy Digest ID"
+                      >
+                        {copiedField === 'digest' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1236,38 +1323,152 @@ export default function TerminalPage() {
                 )}
 
                 <div className="mt-4 space-y-4">
-                  <div>
+                  <div className="relative">
                     <label className="block text-cyan-300 mb-2 text-sm font-medium">
                       PCR0 Value
                     </label>
-                    <input
-                      type="text"
-                      value={pcr0}
-                      readOnly
-                      className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pcr0}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(pcr0, 'pcr0')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy PCR0 value"
+                      >
+                        {copiedField === 'pcr0' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="block text-cyan-300 mb-2 text-sm font-medium">
                       PCR1 Value
                     </label>
-                    <input
-                      type="text"
-                      value={pcr1}
-                      readOnly
-                      className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pcr1}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(pcr1, 'pcr1')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy PCR1 value"
+                      >
+                        {copiedField === 'pcr1' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div>
+                  <div className="relative">
                     <label className="block text-cyan-300 mb-2 text-sm font-medium">
                       PCR2 Value
                     </label>
-                    <input
-                      type="text"
-                      value={pcr2}
-                      readOnly
-                      className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pcr2}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(pcr2, 'pcr2')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy PCR2 value"
+                      >
+                        {copiedField === 'pcr2' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1299,9 +1500,9 @@ export default function TerminalPage() {
                     <div className="relative">
                       <input
                         type="text"
-                        value={digestId}
+                        value={pcr2}
                         onChange={(e) => setDigestId(e.target.value)}
-                        placeholder="Enter Digest ID"
+                        placeholder="Enter PCR2 Value"
                         className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm"
                         autoComplete="off"
                       />
