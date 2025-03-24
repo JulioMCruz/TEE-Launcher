@@ -208,6 +208,16 @@ export default function TerminalPage() {
 
   const handleDeployClick = async () => {
     try {
+      // Clear all outputs and fields
+      setCommandResult("")
+      setVerifyOutput("")
+      setIpAddress("")
+      setDigestId("")
+      setPcr0("")
+      setPcr1("")
+      setPcr2("")
+      setExecuteCommandResult("")
+      
       setIsExecuting(true)
       setCommandResult("Starting deployment process...\n")
 
