@@ -103,10 +103,11 @@ function Home() {
   
       // Get IP address if needed
       const hostAddress = await getHostAddress(host)
+      console.log("hostAddress", hostAddress)
       
       // First try the API
       try {
-        const apiEndpoint = "https://F3E36WT7NF2KMSB4BLVINGNOAY6IXF6OSI5IK4YA5SNLKN67VYKQ.oyster.run"
+        const apiEndpoint = "https://teeshield-backend.vercel.app/verify"
         const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
@@ -122,7 +123,7 @@ function Home() {
         }
         
         const data = await response.json()
-        setVerificationSuccess(data.isSecure)
+        setVerificationSuccess(data.result)
         
         // Save the result for reference
         window.chrome.storage.local.set({
@@ -130,11 +131,11 @@ function Home() {
             url: tab.url,
             host: hostAddress,
             title: tab.title || 'Unknown',
-            isSecure: data.isSecure,
+            isSecure: data.result,
             timestamp: new Date().toISOString(),
             autoTriggered: providerDetected,
             details: {
-              message: data.isSecure ? "Verified as trusted source" : "Security verification failed"
+              message: data.result ? "Verified as trusted source" : "Security verification failed"
             }
           }
         }).catch(err => console.error('Storage error:', err))
@@ -144,31 +145,31 @@ function Home() {
       } catch (error) {
         console.error('API call failed:', error)
         
-        // Fallback: Check for special IP address case
-        if (hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/")) {
-          // Special case is verified as secure
-          setVerificationSuccess(true)
-        } else {
-          // Default to false for all other cases when API fails
-          setVerificationSuccess(false)
-        }
+        // // Fallback: Check for special IP address case
+        // if (hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/")) {
+        //   // Special case is verified as secure
+        //   setVerificationSuccess(true)
+        // } else {
+        //   // Default to false for all other cases when API fails
+        //   setVerificationSuccess(false)
+        // }
         
-        // Save the fallback result
-        window.chrome.storage.local.set({
-          securityCheck: {
-            url: tab.url,
-            host: hostAddress,
-            title: tab.title || 'Unknown',
-            isSecure: hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/"),
-            timestamp: new Date().toISOString(),
-            autoTriggered: providerDetected,
-            details: {
-              message: hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/") 
-                ? "Verified as trusted source (fallback)" 
-                : "Security verification failed (API unavailable)"
-            }
-          }
-        }).catch(err => console.error('Storage error:', err))
+        // // Save the fallback result
+        // window.chrome.storage.local.set({
+        //   securityCheck: {
+        //     url: tab.url,
+        //     host: hostAddress,
+        //     title: tab.title || 'Unknown',
+        //     isSecure: hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/"),
+        //     timestamp: new Date().toISOString(),
+        //     autoTriggered: providerDetected,
+        //     details: {
+        //       message: hostAddress === "3.7.119.251:3000" || tab.url.includes("http://3.7.119.251:3000/") 
+        //         ? "Verified as trusted source (fallback)" 
+        //         : "Security verification failed (API unavailable)"
+        //     }
+        //   }
+        // }).catch(err => console.error('Storage error:', err))
         
         setIsAnalyzing(false)
       }
