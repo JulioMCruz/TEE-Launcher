@@ -57,6 +57,9 @@ export default function TerminalPage() {
   )
   const [transactionHash, setTransactionHash] = useState<string | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [totalCost, setTotalCost] = useState("")
+  const [totalRate, setTotalRate] = useState("")
+  const [jobId, setJobId] = useState("")
 
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
@@ -971,8 +974,13 @@ export default function TerminalPage() {
                           )
                         }
 
+                        console.log("****** jsonData:", jsonData)
+
                         setIpAddress(jsonData.ip)
                         setDigestId(jsonData.digest)
+                        setTotalCost(jsonData.totalCost)
+                        setTotalRate(jsonData.totalRate)
+                        setJobId(jsonData.jobId)
                       } catch (error) {
                         console.error("Error extracting values:", error)
                         setExtractionError(
@@ -1127,6 +1135,161 @@ export default function TerminalPage() {
                       </button>
                     </div>
                   </div>
+                  <div className="relative">
+                    <label className="block text-cyan-300 mb-2 text-sm font-medium">
+                      Total Cost
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-sm">
+                        USDC
+                      </div>
+                      <input
+                        type="text"
+                        value={totalCost}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg pl-14 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(`USDC ${totalCost}`, 'totalCost')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy Total Cost"
+                      >
+                        {copiedField === 'totalCost' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  {/*
+                  <div className="relative">
+                    <label className="block text-cyan-300 mb-2 text-sm font-medium">
+                      Total Rate
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono text-sm">
+                        USDC
+                      </div>
+                      <input
+                        type="text"
+                        value={totalRate}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg pl-14 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(`USDC ${totalRate}`, 'totalRate')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy Total Rate"
+                      >
+                        {copiedField === 'totalRate' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <label className="block text-cyan-300 mb-2 text-sm font-medium">
+                      Job ID
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={jobId}
+                        readOnly
+                        className="w-full bg-gray-800 border border-cyan-900/70 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white shadow-sm font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopy(jobId, 'jobId')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-400 transition-colors"
+                        title="Copy Job ID"
+                      >
+                        {copiedField === 'jobId' ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path
+                              fillRule="evenodd"
+                              d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  */}
                 </div>
               </div>
 
