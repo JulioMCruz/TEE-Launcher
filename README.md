@@ -1,6 +1,4 @@
 
-# ETHGlobal_Trifecta_2025_TEE_track
-
 # TEE Shield
 Protecting your front-end integrity, one dapp at a time!
 
